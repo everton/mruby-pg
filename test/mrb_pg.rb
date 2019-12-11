@@ -57,6 +57,7 @@ assert('PG::Connection#transaction') do
   @conn.transaction do
     @conn.exec("INSERT INTO test VALUES( $1, $2 )", [3, "jon"])
   end
+
   assert_equal "jon", @conn.exec("select * from test where id = $1", [3]).first["name"]
   begin
     @conn.transaction do
@@ -68,3 +69,8 @@ assert('PG::Connection#transaction') do
   assert_equal 0, @conn.exec("select * from test where id = $1", [4]).size
 end
 
+assert('PG::Connection#close') do
+  @conn.close
+  assert_raise(PG::Error) { @conn.exec("select * from test;") }
+  assert_raise(PG::Error) { @conn.close }
+end

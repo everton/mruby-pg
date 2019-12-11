@@ -94,7 +94,7 @@ mrb_value
 pg_new_result(mrb_state *mrb, PGresult *result, mrb_value mrb_pgconn)
 {
   mrb_value val;
-  
+
   val = mrb_obj_value(Data_Wrap_Struct(mrb, mrb_cPGresult(mrb), &mrb_pgresult_type, result));
   mrb_iv_set(mrb, val, mrb_intern_lit(mrb, "@connection"), mrb_pgconn);
 
@@ -242,6 +242,19 @@ pgconn_free(mrb_state *mrb, void *conn)
 
 const struct mrb_data_type mrb_pgconn_type = {
   "pgconn", pgconn_free,
+};
+
+static mrb_value
+pgconn_close(mrb_state *mrb, mrb_value self)
+{
+  PGconn *conn = pg_get_pgconn(mrb, self);
+
+  if (conn != NULL) {
+    PQfinish((PGconn *)conn);
+
+    DATA_PTR(self) = NULL;
+    return mrb_nil_value();
+  }
 };
 
 static mrb_value
@@ -480,7 +493,7 @@ pgconn_exec(mrb_state *mrb, mrb_value self)
   {
     if(mrb_nil_p(b))
       return mrb_funcall_argv(mrb,self,mrb_intern_lit(mrb, "exec_params"),argc,argv);
-    return mrb_funcall_with_block(mrb,self,mrb_intern_lit(mrb, "exec_params"),argc,argv,b);       
+    return mrb_funcall_with_block(mrb,self,mrb_intern_lit(mrb, "exec_params"),argc,argv,b);
   }
 
   result = PQexec(conn, RSTRING_PTR(argv[0]));
@@ -489,7 +502,7 @@ pgconn_exec(mrb_state *mrb, mrb_value self)
 
   if(!mrb_nil_p(b))
     return mrb_funcall_with_block(mrb,mrb_pgresult,mrb_intern_lit(mrb, "each"),0,NULL,b);
-  
+
   return mrb_pgresult;
 }
 
@@ -513,7 +526,7 @@ mrb_mruby_pg_gem_init(mrb_state* mrb) {
   mrb_define_method(mrb, _cPGconn, "exec", pgconn_exec, MRB_ARGS_REQ(1));
   mrb_define_method(mrb, _cPGconn, "exec_params", pgconn_exec_params, MRB_ARGS_REQ(2));
   mrb_define_method(mrb, _cPGconn, "get_result", pgconn_get_result, MRB_ARGS_NONE());
-  
+  mrb_define_method(mrb, _cPGconn, "close", pgconn_close, MRB_ARGS_OPT(1));
 
   mrb_define_class_under(mrb, _mPG, "Error", mrb->eStandardError_class);
 
